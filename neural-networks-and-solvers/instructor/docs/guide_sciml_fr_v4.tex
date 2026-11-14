@@ -1,0 +1,409 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb,mathtools,geometry,booktabs,xcolor,tikz,hyperref,listings}
+
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+\geometry{margin=22mm}
+\definecolor{navy}{RGB}{18,49,88}
+\hypersetup{colorlinks=true,linkcolor=navy}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single}
+\title{Réseaux de neurones et solveurs numériques\\\large Concepts, méthodes et implémentations}
+\author{Frédéric Magoulès}
+\date{Novembre 2026}
+
+\begin{document}\maketitle\tableofcontents\newpage
+
+\section{Organisation des ressources et des travaux pratiques}
+
+Le répertoire \texttt{reference/} contient les \textbf{corrigés exécutables} des exercices : les notebooks complets permettent de vérifier les implémentations et de reproduire les expériences numériques.
+Le répertoire \texttt{student/} contient les versions distribuées aux participants, avec les portions à compléter.
+Le répertoire \texttt{instructor/} rassemble les \textbf{explications de compréhension} : fondements mathématiques, interprétations numériques, schémas et conseils pédagogiques. Il complète les corrigés sans les remplacer.
+\begin{center}\begin{tabular}{ll}\toprule Notebook & Objectif \\\midrule
+\texttt{model\_architecture} & MLP, CNN, graphe kNN, EdgeConv et GNN\\
+\texttt{training\_process} & contraintes faibles et fortes de divergence\\
+\texttt{hybrid\_corrector} & apprentissage résidu-vers-erreur\\
+\texttt{hybrid\_accelerator} & apprentissage second membre-vers-solution\\\bottomrule\end{tabular}\end{center}
+
+\section{Apprentissage supervisé avec PyTorch}
+
+\subsection{Principes et mise en œuvre de l'apprentissage}
+
+On dispose d'un ensemble de $N$ exemples $(x_i,y_i)$, où $x_i$ désigne une donnée d'entrée et $y_i$ la valeur attendue. Le problème consiste à construire une fonction capable de prédire $y_i$ à partir de $x_i$. Le réseau de neurones $F_\theta$ réalise cette prédiction : $F$ désigne la fonction représentée par le réseau, et $\theta$ l'ensemble de ses paramètres ajustables (poids et biais). L'indice $i$ numérote les exemples et $N$ est leur nombre total.
+
+On cherche les paramètres optimaux $\theta^*$ en minimisant la fonction de coût $\mathcal L$ (\textit{loss function}), par exemple l'erreur quadratique moyenne :
+\[
+\boxed{\theta^*=\arg\min_\theta\mathcal L(\theta),\qquad
+\mathcal L(\theta)=\frac{1}{N}\sum_{i=1}^N\|F_\theta(x_i)-y_i\|_2^2.}
+\]
+La norme $\|\cdot\|_2$ mesure l'écart entre la prédiction et la cible. Une époque (\textit{epoch}) correspond à un passage complet sur les données d'entraînement. Les données sont regroupées en mini-lots (\textit{mini-batches}) ; pour chaque mini-lot (\textit{mini-batch}), on calcule les prédictions par propagation avant (\textit{forward pass}), la perte (\textit{loss}), les gradients par rétropropagation (\textit{backpropagation}), puis la mise à jour des paramètres par l'optimiseur (\textit{optimizer}). Le taux d'apprentissage (\textit{learning rate}) règle l'amplitude des mises à jour.
+\begin{lstlisting}[language=Python]
+model = NeuralNetwork()  # A user-defined torch.nn.Module
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+loss_fn = torch.nn.MSELoss()
+loader = DataLoader(TensorDataset(X_train, Y_train),
+                    batch_size=32, shuffle=True)
+for epoch in range(150):
+    model.train()
+    for xb, yb in loader:
+        pred = model(xb)        # Forward pass
+        loss = loss_fn(pred,yb) # Objective function
+        optimizer.zero_grad()  # Reset accumulated gradients
+        loss.backward()        # Automatic differentiation
+        optimizer.step()       # Update parameters
+\end{lstlisting}
+\paragraph{À retenir.} \texttt{loss.backward()} calcule les gradients mais ne modifie pas les paramètres ; \texttt{optimizer.step()} réalise la mise à jour. Pour une descente de gradient élémentaire, $\theta^{k+1}=\theta^k-\eta\nabla_\theta\mathcal L_B(\theta^k)$ ; Adam utilise des moments adaptatifs. Une courbe de validation, calculée sur des données non utilisées pour l'entraînement, permet d'évaluer la capacité du réseau à prédire sur de nouveaux points et de détecter un éventuel surapprentissage.
+
+\subsection{Exemple introductif : approximation d'une fonction sinus par un MLP (\textit{mlp\_sine\_intro})}
+
+On considère une fonction scalaire simple :
+\[y(x)=\sin(2\pi x),\qquad x\in[0,1].\]
+Le réseau $F_\theta:\mathbb R\to\mathbb R$ comporte deux couches cachées de 32 neurones avec activation \texttt{Tanh}. On minimise l'erreur quadratique moyenne sur des couples $(x_i,y_i)$ :
+\[\mathcal L(\theta)=\frac1N\sum_{i=1}^{N}|F_\theta(x_i)-\sin(2\pi x_i)|^2.\]
+Le programme utilise Adam, des mini-lots (\textit{mini-batches}) de 32 exemples et 200 époques (\textit{epochs}). Il trace deux résultats : les pertes d'entraînement et de validation en fonction des époques (\textit{epochs}), puis la fonction exacte et la prédiction du MLP. Les données de validation sont distinctes de celles d'entraînement.
+\paragraph{Exécution.} Dans \texttt{instructor/}, lancer \texttt{python mlp\_sine\_intro.py} (dépendances : NumPy, PyTorch, Matplotlib), ou exécuter \texttt{mlp\_sine\_intro.ipynb}. L'image \texttt{mlp\_sine\_results.png} est enregistrée automatiquement.
+\paragraph{Lien avec la suite.} Cet exemple introduit exclusivement la mécanique \texttt{forward} $\rightarrow$ \texttt{loss} $\rightarrow$ \texttt{backward} $\rightarrow$ \texttt{step}. Le notebook \texttt{model\_architecture} compare les architectures ; \texttt{training\_process} introduit les contraintes physiques ; \texttt{hybrid\_corrector} et \texttt{hybrid\_accelerator} apprennent respectivement une erreur et une solution de systèmes linéaires.
+
+\section{Architectures de réseaux de neurones : MLP, CNN et GNN (\textit{model\_architecture})}
+
+Dans \texttt{model\_architecture}, le MLP travaille sur une représentation aplatie/ponctuelle, le CNN exploite des convolutions locales sur une grille ordonnée, et le GNN agrège des messages selon \texttt{edge\_index}. Le graphe est construit par \texttt{create\_knn\_graph} sur les coordonnées irrégulières, avec $k=5$ par défaut. 
+Chaque arête du maillage est représentée dans les deux orientations
+afin de permettre la propagation des informations dans les deux sens.
+Pour chaque nœud $i$, les messages provenant de ses voisins sont
+calculés puis agrégés selon :
+\[
+m_{ij} = \operatorname{MLP}_{\theta}([h_i,h_j]),
+\qquad
+h'_i = \frac{1}{|\mathcal{N}(i)|}
+\sum_{j \in \mathcal{N}(i)} m_{ij},
+\]
+où :
+\begin{itemize}
+    \item $i$ désigne le nœud dont on souhaite actualiser les
+    caractéristiques ;
+    \item $j$ désigne un nœud voisin de $i$ ;
+    \item $h_i$ et $h_j$ sont les vecteurs de caractéristiques
+    (\textit{features}) respectifs des nœuds $i$ et $j$ ;
+    \item $[h_i,h_j]$ désigne la concaténation de ces deux vecteurs ;
+    \item $\operatorname{MLP}_{\theta}$ est un réseau de neurones
+    multicouche dont les paramètres sont notés $\theta$ ;
+    \item $m_{ij}$ est le message calculé à partir des
+    caractéristiques des nœuds $i$ et $j$, destiné au nœud $i$ ;
+    \item $\mathcal{N}(i)$ est l'ensemble des voisins du nœud $i$,
+    et $|\mathcal{N}(i)|$ leur nombre ;
+    \item $h'_i$ est le nouveau vecteur de caractéristiques du
+    nœud $i$, obtenu en calculant la moyenne des messages reçus.
+\end{itemize}
+
+Il convient d'éviter les doublons d'arêtes orientées, car ils
+conduiraient à comptabiliser plusieurs fois certains messages
+et modifieraient ainsi leur poids relatif dans l'agrégation
+par moyenne.
+
+Cette opération constitue une étape de propagation de messages
+(\textit{message passing}) dans un réseau de neurones sur
+graphes (GNN).
+Le GNN possède trois couches \texttt{EdgeConv}; hors caractéristiques d'entrée globalement informatives, trois passages ne propagent pas les messages au-delà d'un voisinage de trois arêtes. Ici, la distance à la source est déjà fournie comme caractéristique à chaque nœud : la portée effective de l'information disponible ne se résume donc pas au nombre de couches.
+\begin{center}\begin{tikzpicture}[>=Latex, every node/.style={font=\small}]
+\foreach \x/\lab in {0/0,1.6/1,3.2/2,4.8/3,6.4/4,8/5}{\node[circle,draw=navy,minimum size=7mm] (n\lab) at (\x,0) {\lab};}
+\foreach \a/\b in {0/1,1/2,2/3,3/4,4/5}{\draw[thick,navy] (n\a)--(n\b);}
+\draw[->,thick,red] (n0.north) to[bend left=30] node[above] {3 couches : 3 sauts au plus} (n3.north);
+\end{tikzpicture}\end{center}
+
+\section{Apprentissage et accélération des solveurs numériques}
+
+\subsection{Formulation du problème discret}
+
+Considérons une discrétisation du problème de Poisson, avec conditions de Dirichlet homogènes :
+\[-\Delta u=f\quad\text{dans }\Omega,\qquad u=0\quad\text{sur }\partial\Omega.\]
+Après élimination des inconnues de bord, on obtient un système linéaire inversible
+\[Au=f,\qquad u^*=A^{-1}f.\]
+L'écriture $A^{-1}$ est ici \emph{conceptuelle} : les notebooks calculent des solutions de référence au moyen d'un solveur direct creux; ils ne forment pas la matrice inverse. L'opérateur $A$ est fixé par le maillage, la discrétisation et les conditions aux limites. Les réseaux apprennent des approximations de son action sur une \emph{distribution} de vecteurs.
+
+\subsection{Méthode de Jacobi et propriétés de lissage}
+
+Écrivons $A=D-(L+U)$, où $D$ est la diagonale et $L+U=D-A$. Jacobi s'écrit
+\[u^{k+1}=u^k+D^{-1}(f-Au^k),\qquad e^{k+1}=(I-D^{-1}A)e^k.\]
+La matrice d'itération est $T_J=I-D^{-1}A$. Pour le Laplacien modèle sur grille régulière, Jacobi amortit rapidement certaines composantes oscillantes, tandis que les modes lisses peuvent décroître lentement. 
+
+\subsection{Accélération par apprentissage de la solution (\textit{hybrid\_accelerator})}
+
+Dans \texttt{hybrid\_accelerator}, les données sont des paires $(f,u^*)$ où $Au^*=f$. Le CNN $G_\theta$ cherche à approximer
+\[\boxed{G_\theta(f)\simeq A^{-1}f=u^*.}\]
+La sortie est utilisée \emph{une seule fois} comme initialisation : $u^0=G_\theta(f)$, puis Jacobi effectue les itérations classiques. Le CNN n'est pas appliqué à chaque itération.
+\begin{center}\begin{tikzpicture}[node distance=12mm,>=Latex, every node/.style={font=\small},box/.style={draw=navy,rounded corners,minimum height=9mm,align=center}]
+\node[box] (f) {$f$};\node[box,right=of f] (cnn) {CNN $G_\theta$\\approx. de $A^{-1}$};\node[box,right=of cnn] (u) {$u^0$};\node[box,right=of u] (jac) {Jacobi\\$u^{k+1}=u^k+D^{-1}r^k$};\node[box,right=of jac] (res) {$u^m$};
+\draw[->,thick] (f)--(cnn);\draw[->,thick] (cnn)--(u);\draw[->,thick] (u)--(jac);\draw[->,thick] (jac)--(res);
+\end{tikzpicture}\end{center}
+
+\subsection{Correction par apprentissage de l'erreur (\textit{hybrid\_corrector})}
+
+Pour une approximation $u^k$, définissons
+\[r^k=f-Au^k,\qquad e^k=u^*-u^k.\]
+Alors, $Ae^k=r^k$ et
+\[\boxed{e^k=A^{-1}r^k,\qquad C_\theta(r^k)\simeq e^k.}\]
+Le notebook \texttt{hybrid\_corrector} apprend des paires $(r^k,e^k)$ obtenues après un nombre aléatoire d'itérations de Jacobi. Après \texttt{cnn\_at\_step} itérations, il applique une seule correction additive
+\[u^{k,+}=u^k+C_\theta(r^k),\qquad e^{k,+}=e^k-C_\theta(r^k),\]
+puis reprend Jacobi. Une correction exacte donnerait $u^{k,+}=u^*$, mais le réseau est approximatif : le résidu et l'erreur ne s'annulent pas nécessairement.
+\begin{center}\begin{tikzpicture}[node distance=10mm,>=Latex, every node/.style={font=\small},box/.style={draw=navy,rounded corners,minimum height=9mm,align=center}]
+\node[box] (uk) {$u^k$};\node[box,right=of uk] (r) {$r^k=f-Au^k$};\node[box,right=of r] (cnn) {CNN $C_\theta$\\approx. de $A^{-1}$};\node[box,right=of cnn] (e) {$\widehat e^k$};\node[box,right=of e] (plus) {$u^{k,+}=u^k+\widehat e^k$};
+\draw[->,thick] (uk)--(r);\draw[->,thick] (r)--(cnn);\draw[->,thick] (cnn)--(e);\draw[->,thick] (e)--(plus);\draw[->,dashed] (uk.south) -- ++(0,-.7) -| (plus.south);
+\end{tikzpicture}\end{center}
+
+\subsection{Normalisation des données d'entrée et de sortie}
+
+Dans \texttt{hybrid\_accelerator}, $s_f=\sqrt{\operatorname{mean}(f_{\rm int}^2)}+10^{-10}$; on entraîne sur $(f/s_f,u^*/s_f)$. Dans \texttt{hybrid\_corrector}, $s_r=\sqrt{\operatorname{mean}(r_{\rm int}^2)}+10^{-10}$; on entraîne sur $(r/s_r,e/s_r)$. En inférence, on multiplie la prédiction par le même facteur. Cette construction respecte l'homogénéité de l'opérateur linéaire cible, sans garantir que le CNN appris soit lui-même linéaire.
+
+\section{Apprentissage sous contraintes physiques (\textit{training\_process})}
+
+Le notebook source s'appelle \texttt{training\_process.ipynb}. Il reconstruit un champ de vitesse bidimensionnel $v=(v_x,v_y)$.
+
+\subsection{Imposition faible des contraintes : pénalisation de la divergence}
+
+Le réseau produit directement $v_\theta(x,y)$, avec une fonction de coût
+\[\boxed{\mathcal L_{\rm weak}=\frac1N\sum_{i=1}^N\|v_\theta(x_i)-v_i\|^2+\lambda_{\rm div}\frac1N\sum_{i=1}^N|\partial_x v_{\theta,x}(x_i)+\partial_y v_{\theta,y}(x_i)|^2.}\]
+Le gradient automatique doit être activé sur les coordonnées. La divergence n'est pas identiquement nulle : elle est seulement pénalisée, avec un compromis contrôlé par $\lambda_{\rm div}$.
+
+\subsection{Imposition forte des contraintes : formulation par fonction de courant}
+
+Un autre réseau apprend un potentiel scalaire $\psi_\theta(x,y)$, puis construit
+\[\boxed{v_\theta=(\partial_y\psi_\theta,-\partial_x\psi_\theta).}\]
+Si $\psi_\theta$ est suffisamment régulière,
+\[\nabla\cdot v_\theta=\partial_x\partial_y\psi_\theta-\partial_y\partial_x\psi_\theta=0.\]
+Cette identité est structurelle, indépendamment de la pondération d'une pénalité; des écarts numériques peuvent subsister. Les dérivées automatiques nécessaires au calcul de $v$ ne doivent pas être désactivées pendant l'inférence.
+\begin{center}\begin{tikzpicture}[node distance=12mm,>=Latex,box/.style={draw=navy,rounded corners,align=center,minimum height=9mm},every node/.style={font=\small}]
+\node[box] (xy) {$(x,y)$};\node[box,right=of xy] (nn) {Réseau\\$\psi_\theta$};\node[box,right=of nn] (grad) {Autograd\\$(\partial_y\psi,-\partial_x\psi)$};\node[box,right=of grad] (v) {$v_\theta$\\$\nabla\cdot v_\theta=0$};
+\draw[->,thick] (xy)--(nn);\draw[->,thick] (nn)--(grad);\draw[->,thick] (grad)--(v);
+\end{tikzpicture}\end{center}
+
+\section{Solutions commentées des travaux pratiques}
+
+Les réponses ci-dessous suivent les dix exercices des notebooks du répertoire
+\texttt{student/}. Les méthodes et fonctions correspondantes figurent dans
+\texttt{reference/}. Les observations numériques précises dépendent de
+l'entraînement et de l'exécution des notebooks.
+
+\subsection{Exercice 1 --- Propagation avant du MLP}
+
+\textbf{Question.} Reconstituer la méthode \texttt{forward}, comparer les
+biais inductifs du MLP et du CNN et discuter la généralisation à une autre
+position de la source.
+\\
+
+\textbf{Solution commentée.} Dans \texttt{SpatialMLP}, l'entrée
+\texttt{x\_onehot} est de dimension $(B,N)$, où $B$ est la taille du
+mini-lot et $N$ le nombre de points (64 par défaut). Chaque point reçoit
+deux caractéristiques : sa position $x_i$ et la valeur de l'indicateur
+de source à ce point. La concaténation produit $(B,N,2)$, puis
+l'aplatissement $(BN,2)$. Le réseau entièrement connecté applique
+$2\to64\to64\to1$ et la sortie est remise sous la forme $(B,N)$.
+Ce MLP agit point par point : il ne combine pas directement les valeurs
+des points voisins dans sa propagation avant. Le CNN applique au contraire
+des filtres locaux partagés le long de la grille; ce partage des poids
+introduit un biais inductif de localité et de translation (modulo les
+effets de bord). Une bonne prédiction pour une position de source
+observée à l'entraînement ne garantit donc pas une bonne prédiction
+pour une nouvelle position : celle-ci doit être évaluée sur les
+exemples de test.
+
+\subsection{Exercice 2 --- Construction du graphe kNN}
+
+\textbf{Question.} Construire \texttt{create\_knn\_graph} avec des
+connexions orientées symétriques et expliquer le voisinage accessible.
+\\
+
+\textbf{Solution commentée.} Pour chaque nœud $i$, on calcule les
+distances aux autres nœuds, on exclut $i$, puis on sélectionne ses
+$k$ plus proches voisins. Pour chaque voisin $j$, on ajoute les deux
+arêtes orientées $(i,j)$ et $(j,i)$ dans \texttt{edge\_index}.
+Ces orientations distinctes ne sont pas des doublons. En revanche,
+si $i$ et $j$ se sélectionnent mutuellement, la même arête orientée
+peut apparaître plusieurs fois. Avec l'agrégation \texttt{mean}
+d'\texttt{EdgeConv}, une occurrence répétée est comptée plusieurs
+fois et peut modifier la moyenne. Une couche de propagation permet
+de recevoir des messages des voisins immédiats, deux couches des
+nœuds à distance au plus deux, etc., sans garantir que toutes les
+informations soient effectivement conservées.
+
+\subsection{Exercice 3 --- Message EdgeConv}
+
+\textbf{Question.} Construire le message à partir des caractéristiques
+des nœuds source et destinataire et interpréter la profondeur du GNN.
+\\
+
+\textbf{Solution commentée.} La méthode \texttt{message(x\_i,x\_j)}
+concatène les vecteurs du destinataire $i$ et de la source $j$ :
+\[
+m_{ij}=\operatorname{MLP}_{\theta}([h_i,h_j]),\qquad
+h_i'=\frac{1}{|\mathcal N(i)|}\sum_{j\in\mathcal N(i)}m_{ij}.
+\]
+Ici $h_i,h_j$ sont les vecteurs de caractéristiques, $\theta$ les
+paramètres du MLP, $m_{ij}$ le message adressé à $i$, et
+$\mathcal N(i)$ ses voisins (sans répétition dans cette écriture).
+Trois couches de propagation permettent une dépendance structurelle
+aux informations situées à au plus trois arêtes dans le graphe
+utilisé. Elles ne permettent pas, par simple propagation locale,
+d'accéder à une caractéristique située à une distance arbitraire.
+Cette limite concerne la propagation sur le graphe et non une
+information globale éventuellement déjà encodée dans les
+caractéristiques d'entrée.
+
+\subsection{Exercice 4 --- Données résidu--erreur}
+
+\textbf{Question.} Construire les couples $(r,e)$, démontrer $Ae=r$
+et expliquer la normalisation commune.
+\\
+
+\textbf{Solution commentée.} Pour $Au^*=f$, une approximation
+$u$ obtenue après un nombre aléatoire de pas de Jacobi (de 0 à 59
+dans le code) donne
+\[
+r=f-Au,\qquad e=u^*-u,\qquad
+Ae=Au^*-Au=f-Au=r.
+\]
+La solution $u^*$ est calculée par solveur direct creux. Le code
+conserve les points intérieurs et utilise
+$s_r=\sqrt{\operatorname{mean}(r^2)}+10^{-10}$, puis fournit au
+CNN les couples $(r/s_r,e/s_r)$. Employer le même facteur préserve
+la relation d'échelle entre résidu et erreur.
+
+\subsection{Exercice 5 --- Correction neuronale dans Jacobi}
+
+\textbf{Question.} Compléter \texttt{apply\_cnn\_correction} et
+\texttt{run\_hybrid}; expliquer l'ajout de la correction et les
+courbes d'erreur.
+\\
+
+\textbf{Solution commentée.} Le réseau prédit une approximation
+$\widehat e$ de l'erreur à partir du résidu courant, après
+normalisation. On dénormalise puis on effectue
+$u^+=u+\widehat e$ sur les points intérieurs, en conservant les
+conditions au bord. La sortie du CNN est une \emph{correction},
+pas une solution complète. Dans le notebook, elle est appliquée
+une seule fois au pas \texttt{cnn\_at\_step}, puis Jacobi se poursuit.
+La courbe d'erreur relative peut montrer une baisse brusque au
+moment de la correction; son efficacité dépend de la qualité de
+$\widehat e$ et n'est pas garantie pour tout problème.
+
+\subsection{Exercice 6 --- Données second membre--solution}
+
+\textbf{Question.} Construire les couples $(f,u^*)$ normalisés et
+comparer les deux applications apprises.
+\\
+
+\textbf{Solution commentée} Dans \texttt{hybrid\_accelerator},
+le CNN apprend directement
+\[
+G_\theta:\ f\longmapsto u^*\approx A^{-1}f.
+\]
+Le jeu de données contient les valeurs intérieures du second
+membre et de la solution de référence, normalisées par
+$s_f=\sqrt{\operatorname{mean}(f_{\mathrm{int}}^2)}+10^{-10}$.
+Dans \texttt{hybrid\_corrector}, le CNN apprend plutôt
+\[
+C_\theta:\ r\longmapsto e\approx A^{-1}r,
+\]
+où $r=f-Au$ dépend de l'itéré courant. Bien que les deux
+applications fassent intervenir le même opérateur inverse au
+niveau mathématique, elles n'ont ni les mêmes entrées ni le même
+rôle algorithmique : initialisation d'un côté, correction d'un
+itéré de l'autre.
+
+\subsection{Exercice 7 --- Initialisation neuronale}
+
+\textbf{Question.} Compléter \texttt{apply\_cnn\_initial\_guess}
+et la boucle de Jacobi; expliquer les erreurs spectrales persistantes.
+\\
+
+\textbf{Solution commentée} Le CNN prédit les valeurs
+intérieures de $u^0=G_\theta(f)$; le code fixe les valeurs au
+bord à zéro, enregistre l'erreur initiale, puis effectue les
+itérations de Jacobi. Pour l'erreur $e^k=u^*-u^k$,
+\[
+e^{k+1}=(I-D^{-1}A)e^k.
+\]
+Dans les problèmes elliptiques discrétisés usuels, Jacobi
+atténue souvent rapidement les composantes oscillantes
+(hautes fréquences), mais plus lentement les composantes
+lisses (basses fréquences). Une prédiction initiale de bonne
+qualité en norme globale peut encore contenir des composantes
+lentes à éliminer. Le test à fréquence élevée sans
+réentraînement permet également de discuter la généralisation
+hors de la distribution d'entraînement.
+
+\subsection{Exercice 8 --- Incompressibilité faible}
+
+\textbf{Question.} Implémenter la perte sur les données et la
+pénalisation de divergence.
+\\
+
+\textbf{Solution commentée.} Pour une vitesse prédite
+$v_\theta=(v_x,v_y)$,
+\[
+\mathcal L_{\mathrm{data}}
+ =\operatorname{mean}\|v_\theta-v_{\mathrm{true}}\|^2,\qquad
+\mathcal L_{\mathrm{div}}
+ =\operatorname{mean}\left(
+ \frac{\partial v_x}{\partial x}
+ +\frac{\partial v_y}{\partial y}\right)^2,
+\]
+\[
+\mathcal L=\mathcal L_{\mathrm{data}}
++\lambda_{\mathrm{div}}\mathcal L_{\mathrm{div}}.
+\]
+Le coefficient $\lambda_{\mathrm{div}}\geq0$ règle le compromis
+entre fidélité aux données et pénalisation de la divergence.
+La divergence est calculée par différentiation automatique
+par rapport aux coordonnées spatiales; pendant l'entraînement,
+\texttt{create\_graph=True} permet de différencier ensuite la
+perte par rapport aux paramètres du réseau.
+
+\subsection{Exercice 9 --- Incompressibilité forte}
+
+\textbf{Question.} Reconstruire la vitesse à partir d'une fonction
+de courant et démontrer l'annulation de la divergence.
+\\
+
+\textbf{Solution commentée.} Si le réseau prédit une fonction
+de courant $\psi_\theta(x,y)$, on définit
+\[
+v_x=\frac{\partial\psi_\theta}{\partial y},
+\qquad
+v_y=-\frac{\partial\psi_\theta}{\partial x}.
+\]
+Pour une fonction suffisamment régulière ($C^2$),
+\[
+\nabla\cdot v_\theta
+=\frac{\partial^2\psi_\theta}{\partial x\,\partial y}
+-\frac{\partial^2\psi_\theta}{\partial y\,\partial x}=0.
+\]
+L'incompressibilité est ainsi imposée par la paramétrisation
+elle-même, sous réserve des erreurs numériques et de
+différentiation automatique.
+
+\subsection{Exercice 10 --- Entraînement et validation}
+
+\textbf{Question.} Compléter les branches d'entraînement faible
+et fort; expliquer la nécessité des dérivées spatiales.
+\\
+
+\textbf{Solution commentée.} Dans la branche faible,
+\texttt{compute\_loss} calcule la perte sur les données et
+la pénalisation de divergence. Dans la branche forte, le
+réseau prédit $\psi_\theta$ et la vitesse est construite par
+dérivation spatiale avant de calculer la perte sur les vitesses.
+Pour mettre à jour $\theta$, la rétropropagation doit
+traverser cette dérivation : les opérations spatiales doivent
+donc conserver un graphe différentiable, notamment grâce à
+\texttt{create\_graph=True} pendant l'entraînement.
+La validation évalue le modèle sans mise à jour des
+paramètres; elle ne nécessite pas de conserver le graphe
+de dérivation par rapport aux paramètres, mais la
+construction de la vitesse forte exige toujours des
+dérivées par rapport aux coordonnées. Il ne faut donc pas
+supprimer indistinctement toute différentiation automatique
+dans cette branche de validation.
+
+\end{document}

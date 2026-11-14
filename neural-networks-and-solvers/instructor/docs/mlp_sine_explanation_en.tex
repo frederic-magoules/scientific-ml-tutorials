@@ -1,0 +1,361 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{geometry,xcolor,listings,hyperref,amsmath}
+\geometry{margin=23mm}
+\definecolor{navy}{RGB}{18,49,88}
+\lstset{language=Python,basicstyle=\ttfamily\small,breaklines=true,breakatwhitespace=false,
+  frame=single,backgroundcolor=\color{black!3},columns=fullflexible,
+  showstringspaces=false,keepspaces=true}
+\hypersetup{colorlinks=true,linkcolor=navy}
+\title{Sine MLP: line-by-line explanation}
+\author{Frédéric Magoulès}
+\date{November 2026}
+\begin{document}
+\maketitle
+\noindent This document explains every nonblank line of the supplied \texttt{mlp\_sine\_intro.py}, without changing the program. Line numbers match the source exactly. Blank lines are omitted. Validation takes place after every epoch; final inference reuses validation inputs, without a separate test set.
+\section*{Detailed explanations}
+\subsection*{Line 1}
+\begin{lstlisting}
+"""Introductory MLP: fit sin(2*pi*x) with PyTorch on CPU."""
+\end{lstlisting}
+Module docstring: states the goal of fitting sin(2$\pi$x) with PyTorch on the CPU.
+
+\subsection*{Line 2}
+\begin{lstlisting}
+from pathlib import Path
+\end{lstlisting}
+Imports Path to construct an operating-system-independent output path.
+
+\subsection*{Line 3}
+\begin{lstlisting}
+import numpy as np
+\end{lstlisting}
+Imports NumPy, used here to set its random seed.
+
+\subsection*{Line 4}
+\begin{lstlisting}
+import torch
+\end{lstlisting}
+Imports PyTorch for tensor operations and automatic differentiation.
+
+\subsection*{Line 5}
+\begin{lstlisting}
+from torch import nn
+\end{lstlisting}
+Imports PyTorch neural-network layers and functions under the alias nn.
+
+\subsection*{Line 6}
+\begin{lstlisting}
+from torch.utils.data import DataLoader, TensorDataset
+\end{lstlisting}
+Imports tools for datasets and mini-batch iteration.
+
+\subsection*{Line 7}
+\begin{lstlisting}
+import matplotlib
+\end{lstlisting}
+Imports Matplotlib for plotting.
+
+\subsection*{Line 8}
+\begin{lstlisting}
+matplotlib.use("Agg")
+\end{lstlisting}
+Selects the noninteractive Agg rendering backend before importing pyplot; figures can be saved without a GUI.
+
+\subsection*{Line 9}
+\begin{lstlisting}
+import matplotlib.pyplot as plt
+\end{lstlisting}
+Imports the pyplot plotting interface.
+
+\subsection*{Line 11}
+\begin{lstlisting}
+torch.manual_seed(7)
+\end{lstlisting}
+Sets PyTorch's pseudorandom seed to 7 for more reproducible initialization and shuffling.
+
+\subsection*{Line 12}
+\begin{lstlisting}
+np.random.seed(7)
+\end{lstlisting}
+Also sets NumPy's pseudorandom seed.
+
+\subsection*{Line 14}
+\begin{lstlisting}
+# Training and validation inputs are distinct.
+\end{lstlisting}
+Comment: training and validation input locations are different.
+
+\subsection*{Line 15}
+\begin{lstlisting}
+x_train = torch.linspace(0, 1, 101).unsqueeze(1)
+\end{lstlisting}
+Creates 101 evenly spaced inputs from 0 to 1; unsqueeze(1) produces a column tensor of shape (101,1).
+
+\subsection*{Line 16}
+\begin{lstlisting}
+x_val = torch.linspace(0.005, 0.995, 100).unsqueeze(1)
+\end{lstlisting}
+Creates 100 validation inputs from 0.005 to 0.995, offset from the training inputs.
+
+\subsection*{Line 17}
+\begin{lstlisting}
+y_train = torch.sin(2 * torch.pi * x_train)
+\end{lstlisting}
+Computes the target values sin(2$\pi$x) at training inputs.
+
+\subsection*{Line 18}
+\begin{lstlisting}
+y_val = torch.sin(2 * torch.pi * x_val)
+\end{lstlisting}
+Computes the exact target values at validation inputs.
+
+\subsection*{Line 19}
+\begin{lstlisting}
+loader = DataLoader(TensorDataset(x_train, y_train), batch_size=32, shuffle=True)
+\end{lstlisting}
+Pairs inputs with targets and creates shuffled mini-batches of at most 32 samples.
+
+\subsection*{Line 21}
+\begin{lstlisting}
+# One input, one output, and two small hidden layers.
+\end{lstlisting}
+Comment: one scalar input, one scalar output, and two hidden layers.
+
+\subsection*{Line 22}
+\begin{lstlisting}
+model = nn.Sequential(nn.Linear(1, 32), nn.Tanh(), nn.Linear(32, 32),
+\end{lstlisting}
+Begins a sequential model: affine layer 1$\to$32, tanh activation, then affine layer 32$\to$32.
+
+\subsection*{Line 23}
+\begin{lstlisting}
+                      nn.Tanh(), nn.Linear(32, 1))
+\end{lstlisting}
+Adds a second tanh activation and the affine output layer 32$\to$1; closes the model definition.
+
+\subsection*{Line 24}
+\begin{lstlisting}
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+\end{lstlisting}
+Creates an Adam optimizer over the model parameters with learning rate 0.01.
+
+\subsection*{Line 25}
+\begin{lstlisting}
+loss_fn = nn.MSELoss()
+\end{lstlisting}
+Selects the mean squared error (MSE) loss function.
+
+\subsection*{Line 26}
+\begin{lstlisting}
+train_loss, val_loss = [], []
+\end{lstlisting}
+Initializes lists that will record training and validation losses after each epoch.
+
+\subsection*{Line 28}
+\begin{lstlisting}
+# Training
+\end{lstlisting}
+Marks the start of the training phase.
+
+\subsection*{Line 29}
+\begin{lstlisting}
+for epoch in range(200):
+\end{lstlisting}
+Runs 200 epochs; each epoch is one full pass over the training data.
+
+\subsection*{Line 30}
+\begin{lstlisting}
+    model.train()
+\end{lstlisting}
+Switches the model to training mode; especially relevant to dropout and batch normalization, neither of which is used here.
+
+\subsection*{Line 31}
+\begin{lstlisting}
+    for xb, yb in loader:
+\end{lstlisting}
+Iterates through DataLoader mini-batches; xb holds inputs and yb the corresponding targets.
+
+\subsection*{Line 32}
+\begin{lstlisting}
+        prediction = model(xb)           # Forward: predict y from x.
+\end{lstlisting}
+Feeds xb through the MLP to obtain predictions: the forward pass.
+
+\subsection*{Line 33}
+\begin{lstlisting}
+        loss = loss_fn(prediction, yb)   # Loss: compare to sin(2*pi*x).
+\end{lstlisting}
+Computes mean squared error for the current mini-batch.
+
+\subsection*{Line 34}
+\begin{lstlisting}
+        optimizer.zero_grad()           # Clear gradients from previous batch.
+\end{lstlisting}
+Clears gradients accumulated from previous optimization steps.
+
+\subsection*{Line 35}
+\begin{lstlisting}
+        loss.backward()                 # Backward: compute gradients.
+\end{lstlisting}
+Backpropagates to compute derivatives of the loss with respect to trainable parameters.
+
+\subsection*{Line 36}
+\begin{lstlisting}
+        optimizer.step()                # Update the MLP parameters.
+\end{lstlisting}
+Updates weights and biases using Adam.
+
+\subsection*{Line 37}
+\begin{lstlisting}
+    # Validation
+\end{lstlisting}
+Marks the validation stage performed after every epoch.
+
+\subsection*{Line 38}
+\begin{lstlisting}
+    model.eval()
+\end{lstlisting}
+Switches the model to evaluation mode.
+
+\subsection*{Line 39}
+\begin{lstlisting}
+    with torch.no_grad():
+\end{lstlisting}
+Disables gradient tracking, reducing overhead during evaluation.
+
+\subsection*{Line 40}
+\begin{lstlisting}
+        train_loss.append(loss_fn(model(x_train), y_train).item())
+\end{lstlisting}
+Computes MSE over the full training set and stores it as a Python scalar.
+
+\subsection*{Line 41}
+\begin{lstlisting}
+        val_loss.append(loss_fn(model(x_val), y_val).item())
+\end{lstlisting}
+Computes and stores MSE on the distinct validation inputs.
+
+\subsection*{Line 42}
+\begin{lstlisting}
+    if (epoch + 1) % 40 == 0:
+\end{lstlisting}
+Checks whether the one-based epoch number is divisible by 40.
+
+\subsection*{Line 43}
+\begin{lstlisting}
+        print(f"Epoch {epoch+1:3d}: train={train_loss[-1]:.6f}, val={val_loss[-1]:.6f}")
+\end{lstlisting}
+Periodically prints training and validation losses to six decimal places.
+
+\subsection*{Line 45}
+\begin{lstlisting}
+# Inference
+\end{lstlisting}
+Marks final inference: the trained parameters are no longer updated.
+
+\subsection*{Line 46}
+\begin{lstlisting}
+model.eval()
+\end{lstlisting}
+Switches the model to evaluation mode.
+
+\subsection*{Line 47}
+\begin{lstlisting}
+with torch.no_grad():
+\end{lstlisting}
+Disables gradient tracking during inference.
+
+\subsection*{Line 48}
+\begin{lstlisting}
+    prediction = model(x_val).numpy().ravel()
+\end{lstlisting}
+Predicts on x\_val, converts the result to a NumPy array, and flattens it to one dimension.
+
+\subsection*{Line 50}
+\begin{lstlisting}
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
+\end{lstlisting}
+Creates a figure with two side-by-side axes, sized 10 by 3.8 inches.
+
+\subsection*{Line 51}
+\begin{lstlisting}
+axes[0].semilogy(range(1, 201), train_loss, label="Training")
+\end{lstlisting}
+Plots the training-loss history on a logarithmic vertical axis.
+
+\subsection*{Line 52}
+\begin{lstlisting}
+axes[0].semilogy(range(1, 201), val_loss, label="Validation")
+\end{lstlisting}
+Plots the validation-loss history on the same axes.
+
+\subsection*{Line 53}
+\begin{lstlisting}
+axes[0].set(xlabel="Epoch", ylabel="Mean squared error", title="Training history")
+\end{lstlisting}
+Sets axis labels and the first plot title.
+
+\subsection*{Line 54}
+\begin{lstlisting}
+axes[0].legend()
+\end{lstlisting}
+Displays the first plot legend.
+
+\subsection*{Line 55}
+\begin{lstlisting}
+axes[1].plot(x_val.numpy().ravel(), y_val.numpy().ravel(), label="Exact sine")
+\end{lstlisting}
+Plots the exact sine values at validation inputs.
+
+\subsection*{Line 56}
+\begin{lstlisting}
+axes[1].plot(x_val.numpy().ravel(), prediction, "--", label="MLP prediction")
+\end{lstlisting}
+Plots the MLP predictions as a dashed line at those same inputs.
+
+\subsection*{Line 57}
+\begin{lstlisting}
+axes[1].set(xlabel="x", ylabel="y", title="Function approximation")
+\end{lstlisting}
+Sets axis labels and the second plot title.
+
+\subsection*{Line 58}
+\begin{lstlisting}
+axes[1].legend()
+\end{lstlisting}
+Displays the second plot legend.
+
+\subsection*{Line 59}
+\begin{lstlisting}
+fig.tight_layout()
+\end{lstlisting}
+Automatically adjusts spacing to avoid overlapping plot elements.
+
+\subsection*{Line 60}
+\begin{lstlisting}
+output = Path(__file__).with_name("mlp_sine_results.png") if "__file__" in globals() else Path("mlp_sine_results.png")
+\end{lstlisting}
+Chooses the output path: beside the script when \_\_file\_\_ exists, otherwise in the current directory (common in notebooks).
+
+\subsection*{Line 61}
+\begin{lstlisting}
+fig.savefig(output, dpi=160)
+\end{lstlisting}
+Saves the PNG figure at 160 dots per inch.
+
+\subsection*{Line 62}
+\begin{lstlisting}
+print(f"Saved {output}")
+\end{lstlisting}
+Prints the saved image path.
+
+\subsection*{Line 63}
+\begin{lstlisting}
+plt.show()
+\end{lstlisting}
+Displays the figure when supported by the plotting environment.
+
+\end{document}

@@ -1,0 +1,361 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry,xcolor,listings,hyperref,amsmath}
+\geometry{margin=23mm}
+\definecolor{navy}{RGB}{18,49,88}
+\lstset{language=Python,basicstyle=\ttfamily\small,breaklines=true,breakatwhitespace=false,
+  frame=single,backgroundcolor=\color{black!3},columns=fullflexible,
+  showstringspaces=false,keepspaces=true}
+\hypersetup{colorlinks=true,linkcolor=navy}
+\title{MLP et fonction sinus : explication ligne par ligne}
+\author{Frédéric Magoulès}
+\date{November 2026}
+\begin{document}
+\maketitle
+\noindent Ce document commente, sans modifier le programme, chaque ligne non vide du fichier \texttt{mlp\_sine\_intro.py}. Les numéros correspondent exactement au fichier fourni. Les lignes vides ne sont pas commentées. La validation est réalisée après chaque époque ; l'inférence finale réutilise les abscisses de validation, sans jeu de test séparé.
+\section*{Explications détaillées}
+\subsection*{Ligne 1}
+\begin{lstlisting}
+"""Introductory MLP: fit sin(2*pi*x) with PyTorch on CPU."""
+\end{lstlisting}
+Docstring du module : annonce l'objectif, l'approximation de sin(2$\pi$x), PyTorch et l'exécution sur CPU.
+
+\subsection*{Ligne 2}
+\begin{lstlisting}
+from pathlib import Path
+\end{lstlisting}
+Importe Path pour construire un chemin de sortie indépendant du système d'exploitation.
+
+\subsection*{Ligne 3}
+\begin{lstlisting}
+import numpy as np
+\end{lstlisting}
+Importe NumPy, utilisé pour fixer la graine aléatoire.
+
+\subsection*{Ligne 4}
+\begin{lstlisting}
+import torch
+\end{lstlisting}
+Importe PyTorch, bibliothèque de calcul tensoriel et de différentiation automatique.
+
+\subsection*{Ligne 5}
+\begin{lstlisting}
+from torch import nn
+\end{lstlisting}
+Importe les couches et fonctions de réseaux de neurones de PyTorch sous le nom nn.
+
+\subsection*{Ligne 6}
+\begin{lstlisting}
+from torch.utils.data import DataLoader, TensorDataset
+\end{lstlisting}
+Importe les outils de constitution d'un jeu de données et de mini-lots.
+
+\subsection*{Ligne 7}
+\begin{lstlisting}
+import matplotlib
+\end{lstlisting}
+Importe Matplotlib, bibliothèque de visualisation.
+
+\subsection*{Ligne 8}
+\begin{lstlisting}
+matplotlib.use("Agg")
+\end{lstlisting}
+Choisit le moteur de rendu non interactif Agg, avant d'importer pyplot ; cela permet l'enregistrement de figures sans interface graphique.
+
+\subsection*{Ligne 9}
+\begin{lstlisting}
+import matplotlib.pyplot as plt
+\end{lstlisting}
+Importe l'interface de tracé pyplot.
+
+\subsection*{Ligne 11}
+\begin{lstlisting}
+torch.manual_seed(7)
+\end{lstlisting}
+Fixe la graine pseudo-aléatoire de PyTorch à 7 pour rendre l'initialisation et l'ordre aléatoire plus reproductibles.
+
+\subsection*{Ligne 12}
+\begin{lstlisting}
+np.random.seed(7)
+\end{lstlisting}
+Fixe également la graine pseudo-aléatoire de NumPy.
+
+\subsection*{Ligne 14}
+\begin{lstlisting}
+# Training and validation inputs are distinct.
+\end{lstlisting}
+Commentaire : les abscisses d'apprentissage et de validation sont distinctes.
+
+\subsection*{Ligne 15}
+\begin{lstlisting}
+x_train = torch.linspace(0, 1, 101).unsqueeze(1)
+\end{lstlisting}
+Construit 101 abscisses uniformément réparties entre 0 et 1 ; unsqueeze(1) transforme le vecteur en tenseur colonne de forme (101,1).
+
+\subsection*{Ligne 16}
+\begin{lstlisting}
+x_val = torch.linspace(0.005, 0.995, 100).unsqueeze(1)
+\end{lstlisting}
+Construit 100 abscisses de validation entre 0,005 et 0,995 ; elles sont décalées par rapport à celles d'apprentissage.
+
+\subsection*{Ligne 17}
+\begin{lstlisting}
+y_train = torch.sin(2 * torch.pi * x_train)
+\end{lstlisting}
+Calcule les valeurs cibles sin(2$\pi$x) pour les points d'apprentissage.
+
+\subsection*{Ligne 18}
+\begin{lstlisting}
+y_val = torch.sin(2 * torch.pi * x_val)
+\end{lstlisting}
+Calcule les mêmes valeurs exactes pour les points de validation.
+
+\subsection*{Ligne 19}
+\begin{lstlisting}
+loader = DataLoader(TensorDataset(x_train, y_train), batch_size=32, shuffle=True)
+\end{lstlisting}
+Regroupe abscisses et cibles, puis crée des mini-lots de taille maximale 32, mélangés à chaque parcours.
+
+\subsection*{Ligne 21}
+\begin{lstlisting}
+# One input, one output, and two small hidden layers.
+\end{lstlisting}
+Commentaire : le réseau reçoit un scalaire et prédit un scalaire, avec deux couches cachées.
+
+\subsection*{Ligne 22}
+\begin{lstlisting}
+model = nn.Sequential(nn.Linear(1, 32), nn.Tanh(), nn.Linear(32, 32),
+\end{lstlisting}
+Commence un réseau séquentiel : première couche affine 1$\to$32, puis activation tanh, puis deuxième couche affine 32$\to$32.
+
+\subsection*{Ligne 23}
+\begin{lstlisting}
+                      nn.Tanh(), nn.Linear(32, 1))
+\end{lstlisting}
+Ajoute la seconde activation tanh et la couche de sortie affine 32$\to$1 ; termine la définition du réseau.
+
+\subsection*{Ligne 24}
+\begin{lstlisting}
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+\end{lstlisting}
+Crée l'optimiseur Adam sur les paramètres du réseau, avec un taux d'apprentissage de 0,01.
+
+\subsection*{Ligne 25}
+\begin{lstlisting}
+loss_fn = nn.MSELoss()
+\end{lstlisting}
+Choisit la fonction de perte MSE : moyenne des carrés des écarts entre prédictions et cibles.
+
+\subsection*{Ligne 26}
+\begin{lstlisting}
+train_loss, val_loss = [], []
+\end{lstlisting}
+Initialise deux listes pour enregistrer, à chaque époque, les pertes d'apprentissage et de validation.
+
+\subsection*{Ligne 28}
+\begin{lstlisting}
+# Training
+\end{lstlisting}
+Marque le début de la phase d'apprentissage.
+
+\subsection*{Ligne 29}
+\begin{lstlisting}
+for epoch in range(200):
+\end{lstlisting}
+Répète l'apprentissage pendant 200 époques (un passage complet sur les données par époque).
+
+\subsection*{Ligne 30}
+\begin{lstlisting}
+    model.train()
+\end{lstlisting}
+Place le modèle en mode apprentissage ; utile notamment pour dropout et batch normalization, absents ici.
+
+\subsection*{Ligne 31}
+\begin{lstlisting}
+    for xb, yb in loader:
+\end{lstlisting}
+Parcourt les mini-lots fournis par DataLoader ; xb contient les entrées et yb leurs cibles.
+
+\subsection*{Ligne 32}
+\begin{lstlisting}
+        prediction = model(xb)           # Forward: predict y from x.
+\end{lstlisting}
+Passe xb dans le MLP pour calculer la prédiction : propagation avant (forward).
+
+\subsection*{Ligne 33}
+\begin{lstlisting}
+        loss = loss_fn(prediction, yb)   # Loss: compare to sin(2*pi*x).
+\end{lstlisting}
+Calcule l'erreur quadratique moyenne sur le mini-lot courant.
+
+\subsection*{Ligne 34}
+\begin{lstlisting}
+        optimizer.zero_grad()           # Clear gradients from previous batch.
+\end{lstlisting}
+Remet à zéro les gradients précédemment accumulés par l'optimiseur.
+
+\subsection*{Ligne 35}
+\begin{lstlisting}
+        loss.backward()                 # Backward: compute gradients.
+\end{lstlisting}
+Effectue la rétropropagation : calcule les dérivées de la perte par rapport aux paramètres.
+
+\subsection*{Ligne 36}
+\begin{lstlisting}
+        optimizer.step()                # Update the MLP parameters.
+\end{lstlisting}
+Effectue une mise à jour des poids et biais à l'aide d'Adam.
+
+\subsection*{Ligne 37}
+\begin{lstlisting}
+    # Validation
+\end{lstlisting}
+Marque le début de la validation effectuée après chaque époque.
+
+\subsection*{Ligne 38}
+\begin{lstlisting}
+    model.eval()
+\end{lstlisting}
+Place le modèle en mode évaluation.
+
+\subsection*{Ligne 39}
+\begin{lstlisting}
+    with torch.no_grad():
+\end{lstlisting}
+Désactive l'enregistrement des opérations pour le calcul des gradients : évaluation moins coûteuse.
+
+\subsection*{Ligne 40}
+\begin{lstlisting}
+        train_loss.append(loss_fn(model(x_train), y_train).item())
+\end{lstlisting}
+Calcule la MSE sur tous les points d'apprentissage et stocke sa valeur scalaire Python.
+
+\subsection*{Ligne 41}
+\begin{lstlisting}
+        val_loss.append(loss_fn(model(x_val), y_val).item())
+\end{lstlisting}
+Calcule la MSE sur les points distincts de validation et la stocke.
+
+\subsection*{Ligne 42}
+\begin{lstlisting}
+    if (epoch + 1) % 40 == 0:
+\end{lstlisting}
+Teste si le numéro d'époque (compté à partir de 1) est un multiple de 40.
+
+\subsection*{Ligne 43}
+\begin{lstlisting}
+        print(f"Epoch {epoch+1:3d}: train={train_loss[-1]:.6f}, val={val_loss[-1]:.6f}")
+\end{lstlisting}
+Affiche périodiquement les pertes d'apprentissage et de validation avec six décimales.
+
+\subsection*{Ligne 45}
+\begin{lstlisting}
+# Inference
+\end{lstlisting}
+Marque la phase d'inférence finale : les paramètres appris ne sont plus mis à jour.
+
+\subsection*{Ligne 46}
+\begin{lstlisting}
+model.eval()
+\end{lstlisting}
+Place le modèle en mode évaluation.
+
+\subsection*{Ligne 47}
+\begin{lstlisting}
+with torch.no_grad():
+\end{lstlisting}
+Désactive le suivi des gradients pendant l'inférence.
+
+\subsection*{Ligne 48}
+\begin{lstlisting}
+    prediction = model(x_val).numpy().ravel()
+\end{lstlisting}
+Prédit les valeurs sur x\_val, convertit le tenseur en tableau NumPy et l'aplatit en un vecteur 1D.
+
+\subsection*{Ligne 50}
+\begin{lstlisting}
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
+\end{lstlisting}
+Crée une figure avec deux sous-graphiques côte à côte, de taille 10 $\times$ 3,8 pouces.
+
+\subsection*{Ligne 51}
+\begin{lstlisting}
+axes[0].semilogy(range(1, 201), train_loss, label="Training")
+\end{lstlisting}
+Trace l'historique de la perte d'apprentissage en ordonnée logarithmique.
+
+\subsection*{Ligne 52}
+\begin{lstlisting}
+axes[0].semilogy(range(1, 201), val_loss, label="Validation")
+\end{lstlisting}
+Trace l'historique de la perte de validation sur les mêmes axes.
+
+\subsection*{Ligne 53}
+\begin{lstlisting}
+axes[0].set(xlabel="Epoch", ylabel="Mean squared error", title="Training history")
+\end{lstlisting}
+Définit les noms des axes et le titre du premier graphique.
+
+\subsection*{Ligne 54}
+\begin{lstlisting}
+axes[0].legend()
+\end{lstlisting}
+Affiche la légende du premier graphique.
+
+\subsection*{Ligne 55}
+\begin{lstlisting}
+axes[1].plot(x_val.numpy().ravel(), y_val.numpy().ravel(), label="Exact sine")
+\end{lstlisting}
+Trace la fonction sinus exacte sur les abscisses de validation.
+
+\subsection*{Ligne 56}
+\begin{lstlisting}
+axes[1].plot(x_val.numpy().ravel(), prediction, "--", label="MLP prediction")
+\end{lstlisting}
+Trace les prédictions du MLP en pointillés, sur les mêmes abscisses.
+
+\subsection*{Ligne 57}
+\begin{lstlisting}
+axes[1].set(xlabel="x", ylabel="y", title="Function approximation")
+\end{lstlisting}
+Définit les noms des axes et le titre du deuxième graphique.
+
+\subsection*{Ligne 58}
+\begin{lstlisting}
+axes[1].legend()
+\end{lstlisting}
+Affiche la légende du deuxième graphique.
+
+\subsection*{Ligne 59}
+\begin{lstlisting}
+fig.tight_layout()
+\end{lstlisting}
+Ajuste automatiquement les espacements pour limiter les chevauchements.
+
+\subsection*{Ligne 60}
+\begin{lstlisting}
+output = Path(__file__).with_name("mlp_sine_results.png") if "__file__" in globals() else Path("mlp_sine_results.png")
+\end{lstlisting}
+Détermine le chemin de sortie : à côté du script si \_\_file\_\_ existe, sinon dans le répertoire courant (cas fréquent en notebook).
+
+\subsection*{Ligne 61}
+\begin{lstlisting}
+fig.savefig(output, dpi=160)
+\end{lstlisting}
+Enregistre la figure PNG avec une résolution de 160 points par pouce.
+
+\subsection*{Ligne 62}
+\begin{lstlisting}
+print(f"Saved {output}")
+\end{lstlisting}
+Affiche le chemin du fichier image enregistré.
+
+\subsection*{Ligne 63}
+\begin{lstlisting}
+plt.show()
+\end{lstlisting}
+Affiche la figure lorsque l'environnement graphique le permet.
+
+\end{document}
