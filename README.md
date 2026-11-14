@@ -8,4 +8,9 @@ and Scientific Computing.
 
 - [Neural Networks and Hybrid Solvers for Scientific Computing](neural-networks-and-solvers/)
 
-Author: Frédéric Magoulès.
+## Author
+
+**Frédéric Magoulès**  
+Professor of Applied Mathematics and Scientific Computing  
+
+Website: https://frederic-magoules.github.io/
