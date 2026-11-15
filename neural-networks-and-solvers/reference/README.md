@@ -62,6 +62,5 @@ If you use these materials in your research or teaching, please consider citing 
 
 ## License
 
-The original research repository is distributed under the MIT License. Please consult the original repository for its license and attribution requirements.
+The original research repository is licensed under the MIT License. Please refer to the original repository for the applicable copyright and license notices.
 
-The licensing terms applicable to this educational repository should be specified separately.
