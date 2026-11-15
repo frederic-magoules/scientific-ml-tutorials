@@ -37,7 +37,7 @@ https://github.com/marien-chenaud/scientific_ml
 
 If you use these materials in your research or teaching, please consider citing the corresponding article:
 
-> Chenaud, M., Alves, J. & Magoulès, F.  
+> Chenaud, M., Alves, J., Magoulès, F.  
 > How to Learn Physics: A Practical Review of Scientific Machine Learning.  
 > *Archives of Computational Methods in Engineering*, 33, 13653-13681 (2026).  
 > https://doi.org/10.1007/s11831-026-10735-z
