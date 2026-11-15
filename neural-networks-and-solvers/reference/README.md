@@ -29,11 +29,9 @@ Marien Chenaud, José Alves, Frédéric Magoulès
 
 *Archives of Computational Methods in Engineering*, 33, 13653-13681, 2026.
 
-The original research repository is available at:
+The research repository associated with the publication is available at:
 
 https://github.com/marien-chenaud/scientific_ml
-
-This directory provides educational adaptations and reference solutions for practical exercises. It is not the official repository of the article.
 
 ## Citation
 
