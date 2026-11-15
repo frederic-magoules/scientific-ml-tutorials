@@ -8,6 +8,10 @@ and Scientific Computing.
 
 - [Neural Networks and Hybrid Solvers for Scientific Computing](neural-networks-and-solvers/)
 
+## Accessibility
+
+The LaTeX source files are provided to allow users to recompile the documents and customize font families, font sizes, and layouts according to their accessibility needs.
+
 ## Author
 
 **Frédéric Magoulès**  
