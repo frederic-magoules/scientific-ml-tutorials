@@ -23,12 +23,11 @@ The examples cover four main topics:
 
 The examples are based on the scientific concepts and implementations discussed in the following research article:
 
-**How to Learn Physics: A Practical Review of Scientific Machine Learning**
-Marien Chenaud, José Alves, Frédéric Magoulès
-*Archives of Computational Methods in Engineering*, 33, 13653-13681, 2026.
+**How to Learn Physics: A Practical Review of Scientific Machine Learning**  
+Marien Chenaud, José Alves, Frédéric Magoulès  
+*Archives of Computational Methods in Engineering*, 33, 13653–13681, 2026.
 
 **Article:** https://doi.org/10.1007/s11831-026-10735-z  
-
 **Research repository:** https://github.com/marien-chenaud/scientific_ml
 
 ## Citation
