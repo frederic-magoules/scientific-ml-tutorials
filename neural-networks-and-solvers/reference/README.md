@@ -19,16 +19,16 @@ The examples cover four main topics:
 3. **Hybrid Corrector** — Learning error corrections from residuals to improve iterative numerical solvers.
 4. **Hybrid Accelerator** — Learning approximate solutions to initialize and accelerate iterative numerical solvers.
 
-## Scientific Background
+## Related Publication
 
-The examples are based on the scientific concepts and implementations discussed in the following research article:
+The examples are based on the scientific concepts and implementations presented in the following publication:
 
 **How to Learn Physics: A Practical Review of Scientific Machine Learning**  
 Marien Chenaud, José Alves, Frédéric Magoulès  
 *Archives of Computational Methods in Engineering*, 33, 13653–13681, 2026.
 
 **Article:** https://doi.org/10.1007/s11831-026-10735-z  
-**Research repository:** https://github.com/marien-chenaud/scientific_ml
+**Code repository associated with the publication:** https://github.com/marien-chenaud/scientific_ml
 
 ## Citation
 
